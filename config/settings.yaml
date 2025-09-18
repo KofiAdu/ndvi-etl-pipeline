@@ -1,0 +1,24 @@
+aoi:
+  bbox: [25.13, 60.32, 25.63, 60.63]
+  geojson_path: "data/aoi/boundary.geojson"
+  bbox_pad_km: 0
+
+dates:
+  start: "2022-06-01"
+  end:   "2022-12-31"
+
+download:
+  output_dir: "data/raw_landsat"
+  max_cloud_cover: 10
+  max_items: 10   
+
+stac:
+  endpoint: "https://planetarycomputer.microsoft.com/api/stac/v1"
+  collection: "landsat-c2-l2"
+
+search:
+  use_intersects: true
+
+products:
+  reproject_crs: "EPSG:3857"
+  build_overviews: true

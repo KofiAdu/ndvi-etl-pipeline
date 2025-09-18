@@ -1,0 +1,20 @@
+name: ndvi
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - rasterio
+  - gdal
+  - geopandas
+  - pyogrio        # makes read_file work without Fiona
+  - shapely
+  - numpy
+  - pyproj
+  - psycopg2       # use conda psycopg2, not psycopg2-binary
+  - pip
+  - pip:
+      - pystac-client
+      - planetary-computer
+      - requests
+      - tqdm
+      - pyyaml
