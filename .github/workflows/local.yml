@@ -48,7 +48,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Install psql client and wait for DB
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update && sudo apt-get install -y postgresql-client
           for i in {1..30}; do
             pg_isready -h 127.0.0.1 -p 5432 -d Crop_Health -U postgres && echo "DB is ready" && break
@@ -56,62 +58,64 @@ jobs:
           done
 
       - name: Bootstrap DB schema (extensions + tables)
+        shell: bash
         env:
           PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
         run: |
-          set -e
+          set -euo pipefail
           echo "Ensuring PostGIS extensions and schema are present..."
 
-          # Use your init SQLs if they exist in the repo
           if [ -f db/init/001_extensions.sql ]; then
-            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -f db/init/001_extensions.sql
+            psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f db/init/001_extensions.sql
           else
-            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB <<'SQL'
-            CREATE EXTENSION IF NOT EXISTS postgis;
-            CREATE EXTENSION IF NOT EXISTS postgis_raster;
-            SQL
+            psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS postgis;
+          CREATE EXTENSION IF NOT EXISTS postgis_raster;
+          SQL
+                    fi
+
+                    if [ -f db/init/002_schema.sql ]; then
+                      psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f db/init/002_schema.sql
+                    else
+                      psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
+          CREATE TABLE IF NOT EXISTS public.aois (
+            id   SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            geom geometry(MultiPolygon, 4326) NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS public.ndvi_full (
+            id               SERIAL PRIMARY KEY,
+            scene_id         TEXT UNIQUE NOT NULL,
+            acquisition_date DATE,
+            sensor           TEXT,
+            cloud_cover      NUMERIC,
+            raster           raster
+          );
+
+          CREATE TABLE IF NOT EXISTS public.ndvi_clipped (
+            id               SERIAL PRIMARY KEY,
+            full_id          INTEGER REFERENCES public.ndvi_full(id) ON DELETE CASCADE,
+            aoi_id           INTEGER REFERENCES public.aois(id) ON DELETE CASCADE,
+            acquisition_date DATE,
+            mean_ndvi        REAL,
+            raster           raster,
+            UNIQUE (full_id, aoi_id)
+          );
+
+          CREATE TABLE IF NOT EXISTS public.ndvi_viz (
+            id               SERIAL PRIMARY KEY,
+            clipped_id       INTEGER UNIQUE REFERENCES public.ndvi_clipped(id) ON DELETE CASCADE,
+            aoi_id           INTEGER REFERENCES public.aois(id) ON DELETE CASCADE,
+            acquisition_date DATE,
+            style            TEXT,
+            raster           raster
+          );
+          SQL
           fi
 
-          if [ -f db/init/002_schema.sql ]; then
-            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -f db/init/002_schema.sql
-          else
-            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB <<'SQL'
-            CREATE TABLE IF NOT EXISTS public.aois (
-              id   SERIAL PRIMARY KEY,
-              name TEXT UNIQUE NOT NULL,
-              geom geometry(MultiPolygon, 4326) NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS public.ndvi_full (
-              id               SERIAL PRIMARY KEY,
-              scene_id         TEXT UNIQUE NOT NULL,
-              acquisition_date DATE,
-              sensor           TEXT,
-              cloud_cover      NUMERIC,
-              raster           raster
-            );
-            CREATE TABLE IF NOT EXISTS public.ndvi_clipped (
-              id               SERIAL PRIMARY KEY,
-              full_id          INTEGER REFERENCES public.ndvi_full(id) ON DELETE CASCADE,
-              aoi_id           INTEGER REFERENCES public.aois(id) ON DELETE CASCADE,
-              acquisition_date DATE,
-              mean_ndvi        REAL,
-              raster           raster,
-              UNIQUE (full_id, aoi_id)
-            );
-            CREATE TABLE IF NOT EXISTS public.ndvi_viz (
-              id               SERIAL PRIMARY KEY,
-              clipped_id       INTEGER UNIQUE REFERENCES public.ndvi_clipped(id) ON DELETE CASCADE,
-              aoi_id           INTEGER REFERENCES public.aois(id) ON DELETE CASCADE,
-              acquisition_date DATE,
-              style            TEXT,
-              raster           raster
-            );
-            SQL
-          fi
-
-          # quick sanity
-          psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT PostGIS_Full_Version();"
-          psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -c "\dt public.*"
+          psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT PostGIS_Full_Version();"
+          psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt public.*"
 
       - name: Prepare data dirs
         run: |
