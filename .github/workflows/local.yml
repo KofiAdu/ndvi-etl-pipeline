@@ -26,9 +26,8 @@ jobs:
           --health-retries=20
 
     env:
-      # Point your app to the service DB (localhost + mapped port)
       POSTGRES_HOST: 127.0.0.1
-      POSTGRES_PORT: ${{ job.services.db.ports[5432] }}
+      POSTGRES_PORT: 5432
       POSTGRES_DB: Crop_Health
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 12345
@@ -47,6 +46,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Install psql client and wait for DB
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          for i in {1..30}; do
+            pg_isready -h 127.0.0.1 -p 5432 -d Crop_Health -U postgres && echo "DB is ready" && break
+            echo "waiting for db ($i/30)..." && sleep 2
+          done
 
       - name: Prepare data dirs
         run: |
