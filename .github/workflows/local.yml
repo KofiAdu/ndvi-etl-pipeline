@@ -70,11 +70,20 @@ jobs:
           PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
         run: |
           set -euo pipefail
-          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
-            "ALTER SYSTEM SET postgis.gdal_enabled_drivers = 'GTiff'; SELECT pg_reload_conf(); SHOW postgis.gdal_enabled_drivers;"
-          # Show embedded GDAL in PostGIS (useful for debugging)
-          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
-            "SELECT postgis_gdal_version();"
+          # Run ALTER SYSTEM alone (no transaction)
+          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            -c "ALTER SYSTEM SET postgis.gdal_enabled_drivers = 'GTiff';"
+
+          # Reload config in a separate call
+          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            -c "SELECT pg_reload_conf();"
+
+          # Verify settings / embedded GDAL
+          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            -c "SHOW postgis.gdal_enabled_drivers;"
+
+          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            -c "SELECT postgis_gdal_version();"
 
       - name: Bootstrap DB schema (extensions + tables)
         shell: bash
