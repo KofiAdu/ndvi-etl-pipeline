@@ -55,6 +55,64 @@ jobs:
             echo "waiting for db ($i/30)..." && sleep 2
           done
 
+      - name: Bootstrap DB schema (extensions + tables)
+        env:
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        run: |
+          set -e
+          echo "Ensuring PostGIS extensions and schema are present..."
+
+          # Use your init SQLs if they exist in the repo
+          if [ -f db/init/001_extensions.sql ]; then
+            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -f db/init/001_extensions.sql
+          else
+            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB <<'SQL'
+            CREATE EXTENSION IF NOT EXISTS postgis;
+            CREATE EXTENSION IF NOT EXISTS postgis_raster;
+            SQL
+          fi
+
+          if [ -f db/init/002_schema.sql ]; then
+            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -f db/init/002_schema.sql
+          else
+            psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB <<'SQL'
+            CREATE TABLE IF NOT EXISTS public.aois (
+              id   SERIAL PRIMARY KEY,
+              name TEXT UNIQUE NOT NULL,
+              geom geometry(MultiPolygon, 4326) NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS public.ndvi_full (
+              id               SERIAL PRIMARY KEY,
+              scene_id         TEXT UNIQUE NOT NULL,
+              acquisition_date DATE,
+              sensor           TEXT,
+              cloud_cover      NUMERIC,
+              raster           raster
+            );
+            CREATE TABLE IF NOT EXISTS public.ndvi_clipped (
+              id               SERIAL PRIMARY KEY,
+              full_id          INTEGER REFERENCES public.ndvi_full(id) ON DELETE CASCADE,
+              aoi_id           INTEGER REFERENCES public.aois(id) ON DELETE CASCADE,
+              acquisition_date DATE,
+              mean_ndvi        REAL,
+              raster           raster,
+              UNIQUE (full_id, aoi_id)
+            );
+            CREATE TABLE IF NOT EXISTS public.ndvi_viz (
+              id               SERIAL PRIMARY KEY,
+              clipped_id       INTEGER UNIQUE REFERENCES public.ndvi_clipped(id) ON DELETE CASCADE,
+              aoi_id           INTEGER REFERENCES public.aois(id) ON DELETE CASCADE,
+              acquisition_date DATE,
+              style            TEXT,
+              raster           raster
+            );
+            SQL
+          fi
+
+          # quick sanity
+          psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT PostGIS_Full_Version();"
+          psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -c "\dt public.*"
+
       - name: Prepare data dirs
         run: |
           mkdir -p data/aoi data/processed data/raw_landsat
