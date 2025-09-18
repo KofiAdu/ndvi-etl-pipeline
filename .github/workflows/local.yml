@@ -64,23 +64,6 @@ jobs:
             echo "waiting for db ($i/30)..." && sleep 2
           done
 
-      - name: Enable GTiff driver via GUC (optional)
-        shell: bash
-        env:
-          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
-        run: |
-          set -euo pipefail
-          # Now extensions already exist
-          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-            -c "ALTER SYSTEM SET postgis.gdal_enabled_drivers = 'GTiff';"
-          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-            -c "SELECT pg_reload_conf();"
-          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-            -c "SHOW postgis.gdal_enabled_drivers;"
-          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-            -c "SELECT postgis_gdal_version();"
-
-
       - name: Bootstrap DB schema (extensions + tables)
         shell: bash
         env:
