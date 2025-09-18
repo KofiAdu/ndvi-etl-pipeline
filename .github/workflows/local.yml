@@ -17,6 +17,10 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: 12345
           POSTGRES_DB: Crop_Health
+          # IMPORTANT: enable GTiff so ST_FromGDALRaster can read GeoTIFF bytea
+          POSTGIS_GDAL_ENABLED_DRIVERS: "GTiff"
+          # (optional; the image usually has this set correctly)
+          # GDAL_DATA: "/usr/share/gdal/3.6"
         ports:
           - 5432:5432
         options: >-
@@ -53,9 +57,24 @@ jobs:
           set -euo pipefail
           sudo apt-get update && sudo apt-get install -y postgresql-client
           for i in {1..30}; do
-            pg_isready -h 127.0.0.1 -p 5432 -d Crop_Health -U postgres && echo "DB is ready" && break
+            if pg_isready -h 127.0.0.1 -p 5432 -d Crop_Health -U postgres; then
+              echo "DB is ready"
+              break
+            fi
             echo "waiting for db ($i/30)..." && sleep 2
           done
+
+      - name: Ensure GTiff driver enabled in PostGIS
+        shell: bash
+        env:
+          PGPASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
+            "ALTER SYSTEM SET postgis.gdal_enabled_drivers = 'GTiff'; SELECT pg_reload_conf(); SHOW postgis.gdal_enabled_drivers;"
+          # Show embedded GDAL in PostGIS (useful for debugging)
+          psql -v ON_ERROR_STOP=1 -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
+            "SELECT postgis_gdal_version();"
 
       - name: Bootstrap DB schema (extensions + tables)
         shell: bash
