@@ -10,6 +10,30 @@ jobs:
   test-local:
     runs-on: ubuntu-latest
 
+    services:
+      db:
+        image: postgis/postgis:15-3.3
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 12345
+          POSTGRES_DB: Crop_Health
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d Crop_Health"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+
+    env:
+      # Point your app to the service DB (localhost + mapped port)
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: ${{ job.services.db.ports[5432] }}
+      POSTGRES_DB: Crop_Health
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+      PYTHONUNBUFFERED: "1"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,6 +48,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run pipeline
+      - name: Prepare data dirs
+        run: |
+          mkdir -p data/aoi data/processed data/raw_landsat
+
+      - name: Run pipeline (local)
         run: |
           python main.py

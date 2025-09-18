@@ -14,13 +14,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Ensure `data/aoi` folder exists
-        run: mkdir -p data/aoi
+      - name: Ensure data folders exist (writable for container)
+        run: |
+          mkdir -p data/aoi data/processed data/raw_landsat
+          chmod -R 777 data
 
       - name: Set up Docker Compose
         run: |
           sudo apt-get update
-          sudo apt-get install docker-compose -y
+          sudo apt-get install -y docker-compose
 
       - name: Build Docker containers
         run: |
