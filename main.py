@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import yaml
@@ -6,6 +7,19 @@ from shapely.geometry import box, mapping
 from src.extract.download_landsat_stac import download_landsat_scenes
 from src.transform.compute_ndvi import compute_ndvi, clip_raster_to_aoi
 from src.load.load_to_postgis import run_loader
+
+
+##logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler("pipeline.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 
 try:
     from pyproj import datadir
@@ -21,9 +35,9 @@ try:
     except Exception:
         pass
     os.environ.setdefault("PROJ_NETWORK", "ON")
-    print(f"PROJ set to: {proj_dir}")
+    logger.info(f"PROJ set to: {proj_dir}")
 except Exception as e:
-    print(f"Could not set PROJ paths: {e}")
+    logger.error(f"Could not set PROJ paths: {e}")
 
 ##get settings 
 def load_settings():
@@ -59,9 +73,9 @@ def ensure_aoi_geojson_from_bbox(bbox, aoi_path):
         }
         with open(aoi_abs, "w", encoding="utf-8") as f:
             json.dump(fc, f)
-        print(f"Created AOI GeoJSON at {aoi_abs}")
+        logger.info(f"Created AOI GeoJSON at {aoi_abs}")
     else:
-        print(f"Using existing AOI GeoJSON at {aoi_abs}")
+        logger.info(f"Using existing AOI GeoJSON at {aoi_abs}")
 
     return aoi_abs
 
@@ -69,7 +83,7 @@ def ensure_aoi_geojson_from_bbox(bbox, aoi_path):
 def run_pipeline():
     ##load config
     config, CONFIG_PATH = load_settings()
-    print(f"Using config: {CONFIG_PATH}")
+    logger.info(f"Using config: {CONFIG_PATH}")
 
     ##check if AOI file exists
     AOI_PATH = ensure_aoi_geojson_from_bbox(config['aoi']['bbox'], config['aoi']['geojson_path'])
@@ -94,20 +108,20 @@ def run_pipeline():
             ndvi_output = os.path.join(PROCESSED_DIR, f"{scene_id}_NDVI.tif")
             clipped_output = os.path.join(PROCESSED_DIR, f"{scene_id}_NDVI_clipped.tif")
 
-            print(f"Computing NDVI for {scene_id} ...")
+            logger.info(f"Computing NDVI for {scene_id} ...")
             compute_ndvi(b4_path, b5_path, ndvi_output)
 
-            print(f"Clipping NDVI to AOI for {scene_id} ...")
+            logger.info(f"Clipping NDVI to AOI for {scene_id} ...")
             clip_raster_to_aoi(ndvi_output, AOI_PATH, clipped_output)
 
-            print(f"Done: {clipped_output}")
+            logger.info(f"Done: {clipped_output}")
             success_count += 1
 
         except Exception as e:
-            print(f"Failed on {scene_id}: {e}")
+            logger.error(f"Failed on {scene_id}: {e}")
 
-    print(f"Pipeline complete. Successful scenes: {success_count}/{len(scenes)}")
-    print("Loading processed results into PostGIS...")
+    logger.info(f"Pipeline complete. Successful scenes: {success_count}/{len(scenes)}")
+    logger.info("Loading processed results into PostGIS...")
 
     ##load to postgis db
     run_loader() 
@@ -115,16 +129,16 @@ def run_pipeline():
 
 if __name__ == "__main__":
     import sys, traceback
-    print(f">>> Python: {sys.executable}", flush=True)
-    print(f">>> Entry: {__file__}", flush=True)
+    logger.info(f">>> Python: {sys.executable}")
+    logger.info(f">>> Entry: {__file__}")
     try:
-        print(">>> Starting run_pipeline()", flush=True)
+        logger.info(">>> Starting run_pipeline()")
         run_pipeline()
-        print(">>> Finished run_pipeline()", flush=True)
+        logger.info(">>> Finished run_pipeline()")
     except SystemExit as se:
-        print(f"!!! SystemExit: {se}", flush=True)
+        logger.info(f"!!! SystemExit: {se}")
         raise
     except Exception:
-        print("!!! Unhandled exception:", flush=True)
+        logger.info("!!! Unhandled exception:")
         traceback.print_exc()
         raise

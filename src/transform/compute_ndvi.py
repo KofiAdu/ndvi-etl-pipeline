@@ -7,8 +7,10 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 from rasterio.warp import transform_geom
 from shapely.geometry import box, shape
 from shapely.errors import TopologicalError
-import yaml, os
- 
+import yaml, os, logging
+
+logger = logging.getLogger(__name__)
+
 WRITE_LOCAL_CLIP = os.getenv("WRITE_LOCAL_CLIP", "0") == "1"
 WRITE_LOCAL_VIZ  = os.getenv("WRITE_LOCAL_VIZ",  "0") == "1"
 
@@ -52,7 +54,7 @@ def compute_ndvi(b4_path, b5_path, out_path):
         with rasterio.open(out_path, "w", **profile) as dst:
             dst.write(ndvi_out, 1)
 
-    print(f"NDVI saved to {out_path}")
+    logger.info(f"NDVI saved to {out_path}")
     return out_path
 
 def clip_raster_to_aoi(raster_path, aoi_path, out_path):
@@ -64,7 +66,7 @@ def clip_raster_to_aoi(raster_path, aoi_path, out_path):
         ##show raster footprint in WGS84 for sanity check
         try:
             ras_poly_wgs = shape(transform_geom(dst_crs, "EPSG:4326", ras_poly_dst.__geo_interface__))
-            print(f"Raster bounds (WGS84): {tuple(round(v, 4) for v in ras_poly_wgs.bounds)}")
+            logger.info(f"Raster bounds (WGS84): {tuple(round(v, 4) for v in ras_poly_wgs.bounds)}")
         except Exception:
             pass
 
@@ -73,7 +75,7 @@ def clip_raster_to_aoi(raster_path, aoi_path, out_path):
             raise ValueError(f"AOI is empty: {aoi_path}")
         if aoi.crs is None:
             aoi = aoi.set_crs("EPSG:4326")
-        print(f"AOI bounds (WGS84): {tuple(round(v, 4) for v in aoi.to_crs(4326).total_bounds)}")
+        logger.info(f"AOI bounds (WGS84): {tuple(round(v, 4) for v in aoi.to_crs(4326).total_bounds)}")
 
         try:
             aoi_proj = aoi.to_crs(dst_crs)
@@ -101,7 +103,7 @@ def clip_raster_to_aoi(raster_path, aoi_path, out_path):
     with rasterio.open(out_path, "w", **out_meta) as dst:
         dst.write(out_arr)
 
-    print(f"Clipped raster saved to {out_path}")
+    logger.info(f"Clipped raster saved to {out_path}")
 
     ##build overviews and/or reproject
     target_crs, build_ovr = _load_product_opts()
@@ -109,7 +111,7 @@ def clip_raster_to_aoi(raster_path, aoi_path, out_path):
         with rasterio.open(out_path, "r+") as ds:
             ds.build_overviews([2, 4, 8, 16, 32], Resampling.average)
             ds.update_tags(ns="rio_overview", resampling="average")
-        print("Built internal overviews")
+        logger.info("Built internal overviews")
 
     if target_crs:
         reproj_path = os.path.splitext(out_path)[0] + "_viz.tif"
@@ -118,7 +120,7 @@ def clip_raster_to_aoi(raster_path, aoi_path, out_path):
             with rasterio.open(reproj_path, "r+") as ds:
                 ds.build_overviews([2, 4, 8, 16, 32], Resampling.average)
                 ds.update_tags(ns="rio_overview", resampling="average")
-        print(f"Reprojected for viz -> {target_crs}: {reproj_path}")
+        logger.info(f"Reprojected for viz -> {target_crs}: {reproj_path}")
 
     return out_path
 

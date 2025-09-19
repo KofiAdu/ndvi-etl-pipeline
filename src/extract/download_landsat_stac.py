@@ -2,9 +2,11 @@ from typing import Dict, Any, Optional, Tuple, List
 import os, math, yaml, json, requests
 from shapely.geometry import box, mapping
 import geopandas as gpd
-
+import logging
 from pystac_client import Client
 import planetary_computer as pc  
+
+logger = logging.getLogger(__name__)
 
 ##config loader
 def load_settings() -> Tuple[dict, str]:
@@ -89,7 +91,7 @@ def download_landsat_scenes():
         raise ValueError("No AOI provided. Set aoi.geojson_path or aoi.bbox in settings.yaml")
 
     ##search MPC STAC 
-    print(f"STAC query -> collection: {STAC_COLLECTION}, "
+    logger.info(f"STAC query -> collection: {STAC_COLLECTION}, "
           f"dates: {START_DATE}/{END_DATE}, clouds <= {MAX_CLOUD_COVER if MAX_CLOUD_COVER is not None else 'ANY'}")
     cat = Client.open(STAC_ENDPOINT)
 
@@ -113,11 +115,11 @@ def download_landsat_scenes():
 
     search = cat.search(**search_kwargs)
     items = list(search.items())
-    print(f"Found {len(items)} STAC item(s)")
+    logger.info(f"Found {len(items)} STAC item(s)")
 
     if isinstance(MAX_ITEMS, int) and MAX_ITEMS > 0:
         items = items[:MAX_ITEMS]
-        print(f"Limiting to {MAX_ITEMS} item(s) for test")
+        logger.warning(f"Limiting to {MAX_ITEMS} item(s) for test")
 
     if not items:
         print("0 items. Adjust dates/AOI/clouds.")
@@ -125,8 +127,8 @@ def download_landsat_scenes():
 
     ##debug first item
     a0 = items[0]
-    print("First item id:", a0.id)
-    print("First item asset keys:", list((a0.assets or {}).keys()))
+    logger.info(f"First item id: {a0.id}")
+    logger.info(f"First item asset keys: {list((a0.assets or {}).keys())}")
 
     results = []
     scenes_with_bands, files_downloaded = 0, 0
@@ -139,7 +141,7 @@ def download_landsat_scenes():
         scene_id = sitem.id
 
         if scene_id.startswith("LE07"):
-            print(f"Skipping Landsat 7 (SLC-off) scene: {scene_id}")
+            logger.warning(f"Skipping Landsat 7 (SLC-off) scene: {scene_id}")
             continue
 
         ##prefer human-friendly keys; fall back to SR_B# variants
@@ -159,8 +161,8 @@ def download_landsat_scenes():
                     r.raise_for_status()
                     if not _is_geotiff_header(r.headers):
                         sample = (r.raw.read(1200) or b"").decode("utf-8", "ignore")
-                        print(f"Non-TIFF response at: {asset.href}")
-                        print(f"Sample:\n{sample[:200]}")
+                        logger.warning(f"Non-TIFF response at: {asset.href}")
+                        logger.info(f"Sample:\n{sample[:200]}")
                         skip_scene = True
                         break  
                     with open(dst, "wb") as f:
@@ -168,15 +170,15 @@ def download_landsat_scenes():
                             if chunk:
                                 f.write(chunk)
                 _ensure_big_tif(dst)
-                print(f"{os.path.getsize(dst)/1e6:.1f} MB -> {dst}")
+                logger.info(f"{os.path.getsize(dst)/1e6:.1f} MB -> {dst}")
                 files_downloaded += 1
             except Exception as e:
-                print(f"Failed to download {os.path.basename(dst)}: {e}")
+                logger.error(f"Failed to download {os.path.basename(dst)}: {e}")
                 skip_scene = True
                 break
 
         if skip_scene:
-            print(f"Skipping scene: {scene_id}")
+            logger.warning(f"Skipping scene: {scene_id}")
             continue
 
         results.append({
@@ -186,8 +188,8 @@ def download_landsat_scenes():
         })
         scenes_with_bands += 1
 
-    print(f"Summary: items={len(items)}, scenes_with_B4&B5={scenes_with_bands}, files_downloaded={files_downloaded}")
-    print(f"Prepared {len(results)} scene(s) with SR_B4 and SR_B5.")
+    logger.info(f"Summary: items={len(items)}, scenes_with_B4&B5={scenes_with_bands}, files_downloaded={files_downloaded}")
+    logger.info(f"Prepared {len(results)} scene(s) with SR_B4 and SR_B5.")
     return results
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import time
 import os
 import math
 import psycopg2
+import logging
 from psycopg2 import OperationalError
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
@@ -11,7 +12,7 @@ import geopandas as gpd
 import numpy as np
 from tempfile import NamedTemporaryFile
 
-
+logger = logging.getLogger(__name__)
 DEFAULT_TARGET_EPSG = int(os.getenv("DEFAULT_TARGET_EPSG", "32635"))
 
 def _utm_epsg_for_lonlat(lon: float, lat: float) -> int:
@@ -38,7 +39,7 @@ def choose_target_epsg(geojson_path: Path) -> int:
 
 
 def _connect_with_retry():
-    host = os.getenv("POSTGRES_HOST", "db")  
+    host = os.getenv("POSTGRES_HOST", "localhost")  
     db   = os.getenv("POSTGRES_DB", "Crop_Health")
     user = os.getenv("POSTGRES_USER", "postgres")
     pwd  = os.getenv("POSTGRES_PASSWORD", "12345")
@@ -50,7 +51,7 @@ def _connect_with_retry():
                 dbname=db, user=user, password=pwd, host=host, port=port, connect_timeout=3
             )
         except OperationalError as e:
-            print(f"DB not ready (try {attempt}/30): {e}")
+            logger.error(f"DB not ready (try {attempt}/30): {e}")
             time.sleep(2)
     raise RuntimeError("Database never became reachable.")
 
@@ -163,16 +164,16 @@ def load_aois(cursor, geojson_path: Path):
         """, (name, geom_wkt))
         if ok:
             count += 1
-    print(f"Loaded {count} AOI(s)")
+    logger.info(f"Loaded {count} AOI(s)")
 
 
 ##rasters
 def load_ndvi_full(cursor, ndvi_dir: Path, target_epsg: int):
-    print("\nLoading full-scene NDVI rasters...")
+    logger.info("\nLoading full-scene NDVI rasters...")
     for tif_path in ndvi_dir.glob("*_NDVI.tif"):
         if "clipped" in tif_path.name:
             continue
-        print(f"  → {tif_path.name}")
+        logger.info(f"  -> {tif_path.name}")
 
         parts = tif_path.stem.split('_')
         try:
@@ -181,22 +182,22 @@ def load_ndvi_full(cursor, ndvi_dir: Path, target_epsg: int):
             acquisition_date = datetime.strptime(date_str, "%Y%m%d").date()
             sensor = parts[0]
         except Exception as e:
-            print(f"Skipping invalid filename: {tif_path.name} | {e}")
+            logger.warning(f"Skipping invalid filename: {tif_path.name} | {e}")
             continue
 
         try:
             with rasterio.open(tif_path) as src:
                 if src.width == 0 or src.height == 0:
-                    print(f"Skipping raster with 0 width/height: {tif_path.name}")
+                    logger.warning(f"Skipping raster with 0 width/height: {tif_path.name}")
                     continue
         except Exception as e:
-            print(f"Could not open {tif_path.name} as raster: {e}")
+            logger.error(f"Could not open {tif_path.name} as raster: {e}")
             continue
 
         try:
             reproj_path = _reproject_to_epsg(tif_path, target_epsg, res_m=30.0)
         except Exception as e:
-            print(f"Skipping {tif_path.name}: reprojection failed: {e}")
+            logger.warning(f"Skipping {tif_path.name}: reprojection failed: {e}")
             continue
 
         with open(reproj_path, "rb") as f:
@@ -214,10 +215,10 @@ def load_ndvi_full(cursor, ndvi_dir: Path, target_epsg: int):
             try: os.remove(reproj_path)
             except Exception: pass
 
-    print("Full NDVI loaded.")
+    logger.info("Full NDVI loaded.")
 
 def load_ndvi_clipped(cursor, ndvi_dir: Path, aoi_id: int, target_epsg: int):
-    print("\nLoading clipped NDVI rasters...")
+    logger.info("\nLoading clipped NDVI rasters...")
     for tif_path in ndvi_dir.glob("*_NDVI_clipped.tif"):
         if "viz" in tif_path.name:
             continue
@@ -229,13 +230,13 @@ def load_ndvi_clipped(cursor, ndvi_dir: Path, aoi_id: int, target_epsg: int):
             date_str = parts[3]
             acquisition_date = datetime.strptime(date_str, "%Y%m%d").date()
         except Exception as e:
-            print(f"Skipping invalid filename: {tif_path.name} | {e}")
+            logger.warning(f"Skipping invalid filename: {tif_path.name} | {e}")
             continue
 
         cursor.execute("SELECT id FROM ndvi_full WHERE scene_id = %s", (scene_id,))
         r = cursor.fetchone()
         if not r:
-            print(f"Skipping {tif_path.name}, full NDVI not found")
+            logger.warning(f"Skipping {tif_path.name}, full NDVI not found")
             continue
         full_id = r[0]
 
@@ -244,13 +245,13 @@ def load_ndvi_clipped(cursor, ndvi_dir: Path, aoi_id: int, target_epsg: int):
                 band = src.read(1)
                 mean_ndvi = _nanmean(band, src.nodata)
         except Exception as e:
-            print(f"Could not read {tif_path.name} to compute mean: {e}")
+            logger.error(f"Could not read {tif_path.name} to compute mean: {e}")
             continue
 
         try:
             reproj_path = _reproject_to_epsg(tif_path, target_epsg, res_m=30.0)
         except Exception as e:
-            print(f"Skipping {tif_path.name}: reprojection failed: {e}")
+            logger.info(f"Skipping {tif_path.name}: reprojection failed: {e}")
             continue
 
         with open(reproj_path, "rb") as f:
@@ -271,10 +272,10 @@ def load_ndvi_clipped(cursor, ndvi_dir: Path, aoi_id: int, target_epsg: int):
             try: os.remove(reproj_path)
             except Exception: pass
 
-    print("Clipped NDVI loaded.")
+    logger.info("Clipped NDVI loaded.")
 
 def load_ndvi_viz(cursor, ndvi_dir: Path, aoi_id: int):
-    print("\nLoading NDVI viz rasters...")
+    logger.info("\nLoading NDVI viz rasters...")
     for tif_path in ndvi_dir.glob("*_NDVI_clipped_viz.tif"):
         parts = tif_path.stem.split('_')
         try:
@@ -282,20 +283,20 @@ def load_ndvi_viz(cursor, ndvi_dir: Path, aoi_id: int):
             date_str = parts[3]
             acquisition_date = datetime.strptime(date_str, "%Y%m%d").date()
         except Exception as e:
-            print(f"Skipping invalid filename: {tif_path.name} | {e}")
+            logger.warning(f"Skipping invalid filename: {tif_path.name} | {e}")
             continue
 
         cursor.execute("SELECT id FROM ndvi_full WHERE scene_id=%s", (scene_id,))
         r = cursor.fetchone()
         if not r:
-            print(f"No full NDVI for {scene_id}; skipping viz.")
+            logger.warning(f"No full NDVI for {scene_id}; skipping viz.")
             continue
         full_id = r[0]
 
         cursor.execute("SELECT id FROM ndvi_clipped WHERE full_id=%s AND aoi_id=%s", (full_id, aoi_id))
         r2 = cursor.fetchone()
         if not r2:
-            print(f"No clipped NDVI for {scene_id} / AOI {aoi_id}; skipping viz.")
+            logger.warning(f"No clipped NDVI for {scene_id} / AOI {aoi_id}; skipping viz.")
             continue
         clipped_id = r2[0]
 
@@ -303,7 +304,7 @@ def load_ndvi_viz(cursor, ndvi_dir: Path, aoi_id: int):
         try:
             reproj_path = _reproject_to_epsg(tif_path, 3857, res_m=30.0)
         except Exception as e:
-            print(f"Skipping viz {tif_path.name}: reprojection failed: {e}")
+            logger.warning(f"Skipping viz {tif_path.name}: reprojection failed: {e}")
             continue
 
         with open(reproj_path, "rb") as f:
@@ -324,12 +325,12 @@ def load_ndvi_viz(cursor, ndvi_dir: Path, aoi_id: int):
             try: os.remove(reproj_path)
             except Exception: pass
 
-    print("NDVI viz loaded.")
+    logger.info("NDVI viz loaded.")
 
 
 ##raster constraints for QGIS needs srid in raster_columns
 def drop_raster_constraints(cursor):
-    print("\nDropping raster constraints (if present) on ndvi_* tables...")
+    logger.warning("\nDropping raster constraints (if present) on ndvi_* tables...")
     for tbl in ("ndvi_full", "ndvi_clipped", "ndvi_viz"):
         safe_execute(
             cursor,
@@ -340,7 +341,7 @@ def drop_raster_constraints(cursor):
     print("Done dropping raster constraints.")
 
 def add_raster_constraints_metadata(cursor):
-    print("Adding raster metadata constraints for QGIS...")
+    logger.info("Adding raster metadata constraints for QGIS...")
     for tbl in ("ndvi_full", "ndvi_clipped", "ndvi_viz"):
         ok = safe_execute(
             cursor,
@@ -348,13 +349,13 @@ def add_raster_constraints_metadata(cursor):
             (tbl,),
         )
         if not ok:
-            print(f"Warning: failed to add constraints for {tbl}")
+            logger.warning(f"Warning: failed to add constraints for {tbl}")
     cursor.connection.commit()
-    print("Added metadata constraints.")
+    logger.info("Added metadata constraints.")
 
 
 def run_loader():
-    print("\nStarting full ETL Load to PostGIS...")
+    logger.info("\nStarting full ETL Load to PostGIS...")
     ndvi_dir = Path("data/processed")
     geojson_path = Path("data/aoi/boundary.geojson")
 
@@ -362,7 +363,7 @@ def run_loader():
     cursor = conn.cursor()
     try:
         target_epsg = choose_target_epsg(geojson_path)
-        print(f"Using TARGET_EPSG={target_epsg} for rasters (AOI-driven)")
+        logger.info(f"Using TARGET_EPSG={target_epsg} for rasters (AOI-driven)")
 
         drop_raster_constraints(cursor)
 
@@ -386,4 +387,4 @@ def run_loader():
         cursor.close()
         conn.close()
 
-    print("\nETL Load complete.")
+    logger.info("\nETL Load complete.")
