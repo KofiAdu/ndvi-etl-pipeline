@@ -1,21 +1,32 @@
 import logging
 import os
+import sys, traceback
 import json
 import yaml
+import time
 from rasterio._env import get_gdal_data
+from time import perf_counter
+from datetime import datetime
 from shapely.geometry import box, mapping  
 from src.extract.download_landsat_stac import download_landsat_scenes
 from src.transform.compute_ndvi import compute_ndvi, clip_raster_to_aoi
 from src.load.load_to_postgis import run_loader
 
+##log directory
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+##timestamp log file
+log_filename = f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+log_path = os.path.join(LOG_DIR, log_filename)
 
 ##logger
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
-        logging.FileHandler("pipeline.log"),
-        logging.StreamHandler()
+        logging.FileHandler(log_path, encoding="utf-8"),
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
@@ -98,10 +109,15 @@ def run_pipeline():
         print("No scenes downloaded.")
         return
 
+    start = perf_counter()
+
     success_count = 0
+    failure_count = 0
+    failures = []
+
     for s in scenes:
+        scene_id = s.get("scene_id", "unknown")
         try:
-            scene_id = s['scene_id']
             b4_path = s['B4']
             b5_path = s['B5']
 
@@ -119,6 +135,21 @@ def run_pipeline():
 
         except Exception as e:
             logger.error(f"Failed on {scene_id}: {e}")
+            failures.append((scene_id, str(e)))
+            failure_count += 1
+
+    duration = perf_counter() - start
+
+    logger.info("\nPipeline Summary:")
+    logger.info(f"  - Total scenes    : {len(scenes)}")
+    logger.info(f"  - Successful      : {success_count}")
+    logger.info(f"  - Failed          : {failure_count}")
+    logger.info(f"  - Duration        : {duration:.2f} seconds")
+
+    if failures:
+        logger.info("Failure details:")
+        for sid, reason in failures:
+            logger.info(f"    - {sid}: {reason}")
 
     logger.info(f"Pipeline complete. Successful scenes: {success_count}/{len(scenes)}")
     logger.info("Loading processed results into PostGIS...")
@@ -128,12 +159,13 @@ def run_pipeline():
 
 
 if __name__ == "__main__":
-    import sys, traceback
     logger.info(f">>> Python: {sys.executable}")
     logger.info(f">>> Entry: {__file__}")
     try:
         logger.info(">>> Starting run_pipeline()")
+        start_time = time.time()
         run_pipeline()
+        duration = time.time() - start_time
         logger.info(">>> Finished run_pipeline()")
     except SystemExit as se:
         logger.info(f"!!! SystemExit: {se}")

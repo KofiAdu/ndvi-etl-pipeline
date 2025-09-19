@@ -387,4 +387,10 @@ def run_loader():
         cursor.close()
         conn.close()
 
+    logger.info("\nPostGIS Load Summary:")
+    logger.info("  - AOIs loaded         : 1")
+    logger.info("  - NDVI full rasters   : all from processed dir")
+    logger.info("  - NDVI clipped rasters: 1 per scene")
+    logger.info("  - NDVI visualizations : 1 per scene")
+
     logger.info("\nETL Load complete.")

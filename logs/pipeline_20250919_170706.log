@@ -1,0 +1,72 @@
+2025-09-19 17:07:06,614 [INFO] __main__: PROJ set to: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\.venv\lib\site-packages\pyproj\proj_dir\share\proj
+2025-09-19 17:07:06,614 [INFO] __main__: >>> Python: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\.venv\Scripts\python.exe
+2025-09-19 17:07:06,615 [INFO] __main__: >>> Entry: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\main.py
+2025-09-19 17:07:06,615 [INFO] __main__: >>> Starting run_pipeline()
+2025-09-19 17:07:06,616 [INFO] __main__: Using config: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\config\settings.yaml
+2025-09-19 17:07:06,619 [INFO] __main__: Created AOI GeoJSON at C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data/aoi/boundary.geojson
+2025-09-19 17:07:06,787 [INFO] src.extract.download_landsat_stac: STAC query -> collection: landsat-c2-l2, dates: 2022-06-01/2022-12-31, clouds <= 10
+2025-09-19 17:07:07,481 [INFO] src.extract.download_landsat_stac: Found 4 STAC item(s)
+2025-09-19 17:07:07,481 [WARNING] src.extract.download_landsat_stac: Limiting to 10 item(s) for test
+2025-09-19 17:07:07,481 [INFO] src.extract.download_landsat_stac: First item id: LE07_L2SP_187018_20220805_02_T1
+2025-09-19 17:07:07,481 [INFO] src.extract.download_landsat_stac: First item asset keys: ['qa', 'ang', 'red', 'blue', 'drad', 'emis', 'emsd', 'lwir', 'trad', 'urad', 'atran', 'cdist', 'green', 'nir08', 'swir16', 'swir22', 'mtl.txt', 'mtl.xml', 'cloud_qa', 'mtl.json', 'qa_pixel', 'qa_radsat', 'atmos_opacity', 'tilejson', 'rendered_preview']
+2025-09-19 17:07:08,062 [WARNING] src.extract.download_landsat_stac: Skipping Landsat 7 (SLC-off) scene: LE07_L2SP_187018_20220805_02_T1
+2025-09-19 17:11:07,367 [INFO] src.extract.download_landsat_stac: 76.6 MB -> data/raw_landsat\LC08_L2SP_189018_20220722_02_T1_SR_B4.TIF
+2025-09-19 17:11:21,859 [INFO] src.extract.download_landsat_stac: 83.5 MB -> data/raw_landsat\LC08_L2SP_189018_20220722_02_T1_SR_B5.TIF
+2025-09-19 17:11:31,371 [INFO] src.extract.download_landsat_stac: 73.2 MB -> data/raw_landsat\LC09_L2SP_187018_20220630_02_T1_SR_B4.TIF
+2025-09-19 17:11:42,897 [INFO] src.extract.download_landsat_stac: 77.4 MB -> data/raw_landsat\LC09_L2SP_187018_20220630_02_T1_SR_B5.TIF
+2025-09-19 17:13:05,314 [INFO] src.extract.download_landsat_stac: 71.5 MB -> data/raw_landsat\LC08_L2SP_187018_20220606_02_T1_SR_B4.TIF
+2025-09-19 17:13:22,490 [INFO] src.extract.download_landsat_stac: 75.6 MB -> data/raw_landsat\LC08_L2SP_187018_20220606_02_T1_SR_B5.TIF
+2025-09-19 17:13:22,490 [INFO] src.extract.download_landsat_stac: Summary: items=4, scenes_with_B4&B5=3, files_downloaded=6
+2025-09-19 17:13:22,490 [INFO] src.extract.download_landsat_stac: Prepared 3 scene(s) with SR_B4 and SR_B5.
+2025-09-19 17:13:22,490 [INFO] __main__: Computing NDVI for LC08_L2SP_189018_20220722_02_T1 ...
+2025-09-19 17:13:27,781 [INFO] src.transform.compute_ndvi: NDVI saved to C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_189018_20220722_02_T1_NDVI.tif
+2025-09-19 17:13:27,803 [INFO] __main__: Clipping NDVI to AOI for LC08_L2SP_189018_20220722_02_T1 ...
+2025-09-19 17:13:27,833 [INFO] src.transform.compute_ndvi: Raster bounds (WGS84): (21.4248, 58.9475, 25.9036, 61.1997)
+2025-09-19 17:13:27,839 [INFO] src.transform.compute_ndvi: AOI bounds (WGS84): (25.13, 60.32, 25.63, 60.63)
+2025-09-19 17:13:27,893 [INFO] src.transform.compute_ndvi: Clipped raster saved to C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_189018_20220722_02_T1_NDVI_clipped.tif
+2025-09-19 17:13:27,924 [INFO] src.transform.compute_ndvi: Built internal overviews
+2025-09-19 17:13:28,047 [INFO] src.transform.compute_ndvi: Reprojected for viz -> EPSG:3857: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_189018_20220722_02_T1_NDVI_clipped_viz.tif
+2025-09-19 17:13:28,047 [INFO] __main__: Done: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_189018_20220722_02_T1_NDVI_clipped.tif
+2025-09-19 17:13:28,047 [INFO] __main__: Computing NDVI for LC09_L2SP_187018_20220630_02_T1 ...
+2025-09-19 17:13:33,378 [INFO] src.transform.compute_ndvi: NDVI saved to C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC09_L2SP_187018_20220630_02_T1_NDVI.tif
+2025-09-19 17:13:33,415 [INFO] __main__: Clipping NDVI to AOI for LC09_L2SP_187018_20220630_02_T1 ...
+2025-09-19 17:13:33,435 [INFO] src.transform.compute_ndvi: Raster bounds (WGS84): (24.3518, 58.9569, 28.9105, 61.187)
+2025-09-19 17:13:33,440 [INFO] src.transform.compute_ndvi: AOI bounds (WGS84): (25.13, 60.32, 25.63, 60.63)
+2025-09-19 17:13:33,482 [INFO] src.transform.compute_ndvi: Clipped raster saved to C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC09_L2SP_187018_20220630_02_T1_NDVI_clipped.tif
+2025-09-19 17:13:33,514 [INFO] src.transform.compute_ndvi: Built internal overviews
+2025-09-19 17:13:33,605 [INFO] src.transform.compute_ndvi: Reprojected for viz -> EPSG:3857: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC09_L2SP_187018_20220630_02_T1_NDVI_clipped_viz.tif
+2025-09-19 17:13:33,605 [INFO] __main__: Done: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC09_L2SP_187018_20220630_02_T1_NDVI_clipped.tif
+2025-09-19 17:13:33,605 [INFO] __main__: Computing NDVI for LC08_L2SP_187018_20220606_02_T1 ...
+2025-09-19 17:13:39,667 [INFO] src.transform.compute_ndvi: NDVI saved to C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_187018_20220606_02_T1_NDVI.tif
+2025-09-19 17:13:39,698 [INFO] __main__: Clipping NDVI to AOI for LC08_L2SP_187018_20220606_02_T1 ...
+2025-09-19 17:13:39,725 [INFO] src.transform.compute_ndvi: Raster bounds (WGS84): (24.3853, 58.9548, 28.944, 61.1865)
+2025-09-19 17:13:39,729 [INFO] src.transform.compute_ndvi: AOI bounds (WGS84): (25.13, 60.32, 25.63, 60.63)
+2025-09-19 17:13:39,779 [INFO] src.transform.compute_ndvi: Clipped raster saved to C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_187018_20220606_02_T1_NDVI_clipped.tif
+2025-09-19 17:13:39,816 [INFO] src.transform.compute_ndvi: Built internal overviews
+2025-09-19 17:13:39,928 [INFO] src.transform.compute_ndvi: Reprojected for viz -> EPSG:3857: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_187018_20220606_02_T1_NDVI_clipped_viz.tif
+2025-09-19 17:13:39,928 [INFO] __main__: Done: C:\Users\aduko\My Notebook Projects\crop-health-visualizer\ndvi_etl_pipeline\data\processed\LC08_L2SP_187018_20220606_02_T1_NDVI_clipped.tif
+2025-09-19 17:13:39,928 [INFO] __main__: Pipeline complete. Successful scenes: 3/3
+2025-09-19 17:13:39,928 [INFO] __main__: Loading processed results into PostGIS...
+2025-09-19 17:13:39,928 [INFO] src.load.load_to_postgis: 
+Starting full ETL Load to PostGIS...
+2025-09-19 17:13:39,970 [INFO] src.load.load_to_postgis: Using TARGET_EPSG=32635 for rasters (AOI-driven)
+2025-09-19 17:13:39,970 [WARNING] src.load.load_to_postgis: 
+Dropping raster constraints (if present) on ndvi_* tables...
+2025-09-19 17:13:40,052 [INFO] src.load.load_to_postgis: Loaded 1 AOI(s)
+2025-09-19 17:13:40,054 [INFO] src.load.load_to_postgis: 
+Loading full-scene NDVI rasters...
+2025-09-19 17:13:40,054 [INFO] src.load.load_to_postgis:   -> LC08_L2SP_187018_20220606_02_T1_NDVI.tif
+2025-09-19 17:13:43,493 [INFO] src.load.load_to_postgis:   -> LC08_L2SP_189018_20220722_02_T1_NDVI.tif
+2025-09-19 17:13:58,016 [INFO] src.load.load_to_postgis:   -> LC09_L2SP_187018_20220630_02_T1_NDVI.tif
+2025-09-19 17:14:01,185 [INFO] src.load.load_to_postgis: Full NDVI loaded.
+2025-09-19 17:14:01,191 [INFO] src.load.load_to_postgis: 
+Loading clipped NDVI rasters...
+2025-09-19 17:14:02,009 [INFO] src.load.load_to_postgis: Clipped NDVI loaded.
+2025-09-19 17:14:02,009 [INFO] src.load.load_to_postgis: 
+Loading NDVI viz rasters...
+2025-09-19 17:14:02,699 [INFO] src.load.load_to_postgis: NDVI viz loaded.
+2025-09-19 17:14:02,699 [INFO] src.load.load_to_postgis: Adding raster metadata constraints for QGIS...
+2025-09-19 17:14:06,286 [INFO] src.load.load_to_postgis: Added metadata constraints.
+2025-09-19 17:14:06,294 [INFO] src.load.load_to_postgis: 
+ETL Load complete.
+2025-09-19 17:14:06,295 [INFO] __main__: >>> Finished run_pipeline()
