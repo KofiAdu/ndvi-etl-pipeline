@@ -11,6 +11,7 @@ dependencies:
   - numpy
   - pyproj
   - psycopg2       # use conda psycopg2, not psycopg2-binary
+  - pytest
   - pip
   - pip:
       - pystac-client
