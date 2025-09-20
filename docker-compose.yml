@@ -34,16 +34,14 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
       POSTGRES_PORT: "5432"
       PYTHONUNBUFFERED: "1"
-      OMP_NUM_THREADS: "1"           # OpenMP (NumPy/BLAS)
-      OPENBLAS_NUM_THREADS: "1"       # OpenBLAS
-      NUMEXPR_NUM_THREADS: "1"      # if numexpr is installed
-      MKL_NUM_THREADS: "1"            # harmless if MKL not used
+      OMP_NUM_THREADS: "1"           
+      OPENBLAS_NUM_THREADS: "1"       
+      NUMEXPR_NUM_THREADS: "1"      
+      MKL_NUM_THREADS: "1"            
     volumes:
       - .:/app
       - ./data:/app/data
-    # if your image uses micromamba env "ndvi":
     command: ["micromamba","run","-n","ndvi","python","main.py"]
-    # if not using micromamba, then:
     # command: ["python","main.py"]
 
 volumes:
