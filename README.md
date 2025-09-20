@@ -68,9 +68,11 @@ This project demonstrates how to build, deploy, and monitor a complete ETL proce
 
 ## Output Example
 
-![NDVI original output in QGIS](docs/ndvi_qgis_view.png)
-![NDVI polished (Singleband PseudoColor with RdYlGn color ramp) output in QGIS](docs/ndvi_qgis_view.png)
+![NDVI original output in QGIS](loadedLayer.png)
+### NDVI original output in QGIS
 
+![NDVI polished (Singleband PseudoColor with RdYlGn color ramp) output in QGIS](pseudoColorRaster.png)
+### NDVI polished (Singleband PseudoColor with RdYlGn color ramp) output in QGIS
 > NDVI raster clipped to AOI and visualized in QGIS. Output stored in `/data/processed`.
 
 ---
@@ -218,3 +220,4 @@ AOI_PATH = Path("data/aoi/boundary.geojson")
 ## License
 
 MIT License (see `LICENSE`)
+
