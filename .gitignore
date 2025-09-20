@@ -8,3 +8,9 @@ __pycache__/
 *.ipynb
 .env.local
 logs/*.log
+*.tif
+*.tiff
+*.zip
+*.tar
+*.csv
+*.json

@@ -30,29 +30,64 @@ def _load_product_opts():
     return None, False
 
 def compute_ndvi(b4_path, b5_path, out_path):
-    ##landsat c2 l2 scaling (surface reflectance)
-    scale, offset = 0.0000275, -0.2
+    # Landsat Collection 2 Level-2 SR scale/offset
+    SCALE, OFFSET = np.float32(0.0000275), np.float32(-0.2)
+    EPS = np.float32(1e-6)
+    NODATA_OUT = np.float32(-9999.0)
 
     with rasterio.open(b4_path) as r4, rasterio.open(b5_path) as r5:
         if (r4.width, r4.height, r4.transform) != (r5.width, r5.height, r5.transform):
             raise ValueError("B4 and B5 rasters are not on the same grid.")
 
-        red = r4.read(1).astype("float32") * scale + offset
-        nir = r5.read(1).astype("float32") * scale + offset
+        # Read as float32 directly to avoid extra casts
+        red_dn = r4.read(1).astype("float32", copy=False)
+        nir_dn = r5.read(1).astype("float32", copy=False)
 
-        invalid = ~np.isfinite(red) | ~np.isfinite(nir)
+        # --- Build masks BEFORE scaling ---
+        # Landsat SR: DN==0 is fill (NoData). Also respect input nodata if set.
+        mask = (red_dn == 0) | (nir_dn == 0)
+        if r4.nodata is not None:
+            mask |= (red_dn == r4.nodata)
+        if r5.nodata is not None:
+            mask |= (nir_dn == r5.nodata)
 
-        with np.errstate(divide='ignore', invalid='ignore'):
-            ndvi = (nir - red) / (nir + red)
-        ndvi[invalid] = np.nan
+        # Apply scale/offset
+        red = red_dn * SCALE + OFFSET
+        nir = nir_dn * SCALE + OFFSET
+
+        # Any remaining non-finite values: mask them
+        mask |= ~np.isfinite(red) | ~np.isfinite(nir)
+
+        # --- FP-safe NDVI ---
+        denom = nir + red
+        # Add epsilon so denom is never exactly 0 in vectorized native code
+        with np.errstate(divide='ignore', invalid='ignore', over='ignore', under='ignore'):
+            ndvi = (nir - red) / (denom + EPS)
+
+        # Clean & clamp
+        ndvi = np.where(mask, NODATA_OUT, ndvi).astype("float32", copy=False)
+        # clamp real values; leave NoData alone
+        real = ndvi != NODATA_OUT
+        ndvi[real] = np.clip(ndvi[real], -1.0, 1.0, out=ndvi[real])
 
         profile = r4.profile.copy()
-        profile.update(driver="GTiff", dtype="float32", count=1, nodata=-9999.0,
-                       compress="deflate", predictor=3, zlevel=6)
+        profile.update(
+            driver="GTiff",
+            dtype="float32",
+            count=1,
+            nodata=float(NODATA_OUT),
+            compress="deflate",
+            predictor=3,
+            zlevel=6,
+            tiled=True,              # safer for big rasters
+            blockxsize=256,
+            blockysize=256,
+        )
 
-        ndvi_out = np.where(np.isfinite(ndvi), ndvi, -9999.0).astype("float32")
         with rasterio.open(out_path, "w", **profile) as dst:
-            dst.write(ndvi_out, 1)
+            dst.write(ndvi, 1)
+            # (Optional) build overviews later in a separate step/process
+            # dst.build_overviews([2, 4, 8, 16], Resampling.average)
 
     logger.info(f"NDVI saved to {out_path}")
     return out_path
