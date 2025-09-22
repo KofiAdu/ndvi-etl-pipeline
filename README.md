@@ -215,12 +215,12 @@ AOI_PATH = Path("data/aoi/boundary.geojson")
 - [ ] Streamlit or Leaflet viewer for NDVI rasters
 - [ ] Airflow-based scheduler for monthly updates
 - [ ] Cloud storage upload (S3 or GCS)
-- [ ] AOI database interface (e.g., list + status + last run)
 
 ---
 
 ## License
 
 MIT License (see `LICENSE`)
+
 
 
